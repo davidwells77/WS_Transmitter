@@ -22,6 +22,9 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   dht.begin();
+  sensor_t sensor;
+  dht.humidity().getSensor(&sensor);
+  delayMS = sensor.min_delay / 1000;
   if(!bmp.begin()) {
     Serial.println("No BMP pressure sensor detected");
     while(1);
@@ -35,15 +38,31 @@ void setup() {
     while(1);
   }
   pinMode(HALLPIN, INPUT);
-  
+  delayMS = sensor.min_delay / 1000;
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   static bool bFlag = true;
   static float fOldTemperature = 0, fOldHumidity = 0,  fOldPressure = 0, fOldHeading = 0, fOldRPM = 0;
-
+  float fTemperature = 0, fHumidity = 0,  fPressure = 0, fHeading = 0, fRPM = 0;
+  char cTexto[255];
+  
+  sensors_event_t event;
   if(bFlag) {
+    // delay(delayMS);
+    dht.temperature().getEvent(&event);
+    fOldTemperature = event.temperature;
+    dht.humidity().getEvent(&event);
+    fOldHumidity = event.relative_humidity;
+    bmp.getEvent(&event);
+    fOldPressure = event.pressure;
+    float fBMPTemperature;
+    bmp.getTemperature(&fBMPTemperature);
+    sprintf(cTexto, "%f %f %f %f", fOldTemperature, fOldHumidity, fOldPressure, fBMPTemperature);
+    Serial.println(cTexto);
     bFlag = !bFlag;
   }
+  // delay(delayMS);
+  
 }
