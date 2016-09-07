@@ -39,30 +39,58 @@ void setup() {
   }
   pinMode(HALLPIN, INPUT);
   delayMS = sensor.min_delay / 1000;
+  delay(1000);
+}
+
+void printValues(float temperature, int humidity, int pressure, int heading) {
+  Serial.print(millis());
+  Serial.print(' ');
+  Serial.print(temperature);
+  Serial.print(' ');
+  Serial.print(humidity);
+  Serial.print(' ');
+  Serial.print(pressure);
+  Serial.print(' ');
+  Serial.println(heading);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  static bool bFlag = true;
-  static float fOldTemperature = 0, fOldHumidity = 0,  fOldPressure = 0, fOldHeading = 0, fOldRPM = 0;
-  float fTemperature = 0, fHumidity = 0,  fPressure = 0, fHeading = 0, fRPM = 0;
-  char cTexto[255];
+  static float oldTemperature = 0;
+  static int oldHumidity = 0, oldPressure = 0, oldHeading = 0, oldRPM = 0;
+  unsigned long currentMillis = millis();
+  static unsigned long delayMillis = currentMillis;
+  static float temperature = 0;
+  static int humidity = 0,  pressure = 0, heading = 0, RPM = 0;
   
   sensors_event_t event;
-  if(bFlag) {
-    // delay(delayMS);
+  if(currentMillis - delayMillis >= 60000) {
     dht.temperature().getEvent(&event);
-    fOldTemperature = event.temperature;
+    temperature = event.temperature;
     dht.humidity().getEvent(&event);
-    fOldHumidity = event.relative_humidity;
+    humidity = event.relative_humidity;
     bmp.getEvent(&event);
-    fOldPressure = event.pressure;
-    float fBMPTemperature;
-    bmp.getTemperature(&fBMPTemperature);
-    sprintf(cTexto, "%f %f %f %f", fOldTemperature, fOldHumidity, fOldPressure, fBMPTemperature);
-    Serial.println(cTexto);
-    bFlag = !bFlag;
+    pressure = event.pressure;
+    mag.getEvent(&event);
+    float tHeading = 0;
+    tHeading = atan2(event.magnetic.y, event.magnetic.x);
+    tHeading += -0.15;
+    if(tHeading < 0)
+      tHeading += 2*PI;
+    if(tHeading > 2*PI)
+      tHeading -= 2*PI;
+    heading = (int) tHeading * 180/M_PI;
+    delayMillis = currentMillis;
   }
-  // delay(delayMS);
-  
+  if((temperature != oldTemperature) || (humidity != oldHumidity) || (pressure != oldPressure) || (heading != oldHeading)) {
+    printValues(temperature, humidity, pressure, heading);
+    if(oldTemperature != temperature)
+      oldTemperature = temperature;
+    if(oldHumidity != humidity)
+      oldHumidity = humidity;
+    if(oldPressure != pressure)
+      oldPressure = pressure;
+    if(oldHeading != heading)
+      oldHeading = heading;
+  }
 }
