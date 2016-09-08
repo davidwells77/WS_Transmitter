@@ -42,44 +42,41 @@ void setup() {
   delay(1000);
 }
 
-void printValues(float temperature, int humidity, int pressure, int heading) {
-  Serial.print(millis());
-  Serial.print(' ');
-  Serial.print(temperature);
-  Serial.print(' ');
-  Serial.print(humidity);
-  Serial.print(' ');
-  Serial.print(pressure);
-  Serial.print(' ');
-  Serial.println(heading);
+void printValues(int temperature, int humidity, int pressure, int heading) {
+
+  char buf[255];
+  sprintf(buf, "Temperature=%d;Humidity=%d;Pressure=%d;Heading=%d", temperature, humidity, pressure, heading);
+  Serial.println(buf);
+}
+
+void readSensors(int* temperature, int* humidity, int* pressure, int* heading) {
+  
+  sensors_event_t event;
+  dht.temperature().getEvent(&event);
+  *temperature = (int) (event.temperature * 10);
+  dht.humidity().getEvent(&event);
+  *humidity = (int) (event.relative_humidity * 10);
+  bmp.getEvent(&event);
+  *pressure = (int) event.pressure;
+  mag.getEvent(&event);
+  *heading = (int) (atan2(event.magnetic.y, event.magnetic.x) * 1000);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  static float oldTemperature = 0;
-  static int oldHumidity = 0, oldPressure = 0, oldHeading = 0, oldRPM = 0;
+  static bool first = true;
+  static int oldTemperature = 0, oldHumidity = 0, oldPressure = 0, oldHeading = 0, oldRPM = 0;
   unsigned long currentMillis = millis();
   static unsigned long delayMillis = currentMillis;
-  static float temperature = 0;
-  static int humidity = 0,  pressure = 0, heading = 0, RPM = 0;
+  static int temperature = 0, humidity = 0,  pressure = 0, heading = 0, RPM = 0;
   
-  sensors_event_t event;
+  if(first) {
+    readSensors(&temperature, &humidity, &pressure, &heading);
+    delayMillis = currentMillis;
+    first = !first;
+  }
   if(currentMillis - delayMillis >= 60000) {
-    dht.temperature().getEvent(&event);
-    temperature = event.temperature;
-    dht.humidity().getEvent(&event);
-    humidity = event.relative_humidity;
-    bmp.getEvent(&event);
-    pressure = event.pressure;
-    mag.getEvent(&event);
-    float tHeading = 0;
-    tHeading = atan2(event.magnetic.y, event.magnetic.x);
-    tHeading += -0.15;
-    if(tHeading < 0)
-      tHeading += 2*PI;
-    if(tHeading > 2*PI)
-      tHeading -= 2*PI;
-    heading = (int) tHeading * 180/M_PI;
+    readSensors(&temperature, &humidity, &pressure, &heading);
     delayMillis = currentMillis;
   }
   if((temperature != oldTemperature) || (humidity != oldHumidity) || (pressure != oldPressure) || (heading != oldHeading)) {
