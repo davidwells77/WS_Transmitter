@@ -42,13 +42,6 @@ void setup() {
   delay(1000);
 }
 
-void printValues(int temperature, int humidity, int pressure, int heading) {
-
-  char buf[255];
-  sprintf(buf, "Temperature=%d;Humidity=%d;Pressure=%d;Heading=%d", temperature, humidity, pressure, heading);
-  Serial.println(buf);
-}
-
 void readSensors(int* temperature, int* humidity, int* pressure, int* heading) {
   
   sensors_event_t event;
@@ -80,7 +73,11 @@ void loop() {
     delayMillis = currentMillis;
   }
   if((temperature != oldTemperature) || (humidity != oldHumidity) || (pressure != oldPressure) || (heading != oldHeading)) {
-    printValues(temperature, humidity, pressure, heading);
+    char *message = malloc(100);
+    sprintf(message, "Temperature=%d;Humidity=%d;Pressure=%d;Heading=%d", temperature, humidity, pressure, heading);
+    Serial.println(message);
+    ask.send((uint8_t *)message, strlen(message)+1);
+    ask.waitPacketSent();
     if(oldTemperature != temperature)
       oldTemperature = temperature;
     if(oldHumidity != humidity)
