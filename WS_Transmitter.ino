@@ -20,7 +20,10 @@ uint32_t delayMS;
 
 void setup() {
   // put your setup code here, to run once:
+  delay(1000);
   Serial.begin(9600);
+  pinMode(HALLPIN, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   dht.begin();
   sensor_t sensor;
   dht.humidity().getSensor(&sensor);
@@ -37,9 +40,7 @@ void setup() {
     Serial.println("No ASK transmitter detected");
     while(1);
   }
-  pinMode(HALLPIN, INPUT);
-  delayMS = sensor.min_delay / 1000;
-  delay(1000);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void readSensors(int* temperature, int* humidity, int* pressure, int* heading) {
@@ -55,36 +56,35 @@ void readSensors(int* temperature, int* humidity, int* pressure, int* heading) {
   *heading = (int) (atan2(event.magnetic.y, event.magnetic.x) * 1000);
 }
 
+void sendMessage(int temperature, int humidity, int pressure, int heading) {
+  
+  char *message = (char *)malloc(RH_ASK_MAX_MESSAGE_LEN);
+  sprintf(message, "T=%d;H=%d;P=%d;D=%d", temperature, humidity, pressure, heading);
+  // Serial.println(message);
+  ask.send((uint8_t *)message, strlen(message));
+  ask.waitPacketSent();
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
-  static bool first = true;
-  static int oldTemperature = 0, oldHumidity = 0, oldPressure = 0, oldHeading = 0, oldRPM = 0;
+  static bool first = true, led = false;
   unsigned long currentMillis = millis();
-  static unsigned long delayMillis = currentMillis;
+  static unsigned long delayMillis = currentMillis, blinker = currentMillis;
   static int temperature = 0, humidity = 0,  pressure = 0, heading = 0, RPM = 0;
   
-  if(first) {
-    readSensors(&temperature, &humidity, &pressure, &heading);
-    delayMillis = currentMillis;
-    first = !first;
+  if(currentMillis - blinker >= 1000) {
+    if(led) {
+      digitalWrite(LED_BUILTIN, LOW);
+    } else {
+      digitalWrite(LED_BUILTIN, HIGH);
+    }
+    led = !led;
+    blinker = currentMillis;
   }
-  if(currentMillis - delayMillis >= 60000) {
+  if((first) || (currentMillis - delayMillis >= 60000)) {
     readSensors(&temperature, &humidity, &pressure, &heading);
+    sendMessage(temperature, humidity, pressure, heading);
+    if(first) first = !first;
     delayMillis = currentMillis;
-  }
-  if((temperature != oldTemperature) || (humidity != oldHumidity) || (pressure != oldPressure) || (heading != oldHeading)) {
-    char *message = malloc(100);
-    sprintf(message, "Temperature=%d;Humidity=%d;Pressure=%d;Heading=%d", temperature, humidity, pressure, heading);
-    Serial.println(message);
-    ask.send((uint8_t *)message, strlen(message)+1);
-    ask.waitPacketSent();
-    if(oldTemperature != temperature)
-      oldTemperature = temperature;
-    if(oldHumidity != humidity)
-      oldHumidity = humidity;
-    if(oldPressure != pressure)
-      oldPressure = pressure;
-    if(oldHeading != heading)
-      oldHeading = heading;
   }
 }
